@@ -1,4 +1,4 @@
-{{-- Общее подключение CSS/JS (как в welcome.blade.php + production manifest) --}}
+{{-- Общее подключение CSS/JS. Пути /build/... — относительные, чтобы работало на Render без APP_URL --}}
 @if (file_exists(public_path('hot')))
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -12,15 +12,15 @@
     @endphp
 
     @if (! empty($fontsManifest['style']['file']))
-        <link rel="stylesheet" href="{{ asset('build/'.$fontsManifest['style']['file']) }}">
+        <link rel="stylesheet" href="/build/{{ $fontsManifest['style']['file'] }}">
     @endif
 
     @if (! empty($viteManifest['resources/css/app.css']['file']))
-        <link rel="stylesheet" href="{{ asset('build/'.$viteManifest['resources/css/app.css']['file']) }}">
+        <link rel="stylesheet" href="/build/{{ $viteManifest['resources/css/app.css']['file'] }}">
     @endif
 
     @if (! empty($viteManifest['resources/js/app.js']['file']))
-        <script type="module" src="{{ asset('build/'.$viteManifest['resources/js/app.js']['file']) }}"></script>
+        <script type="module" src="/build/{{ $viteManifest['resources/js/app.js']['file'] }}"></script>
     @endif
 @else
     {{-- Fallback, если npm run build ещё не выполнялся --}}

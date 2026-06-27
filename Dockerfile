@@ -47,11 +47,11 @@ RUN touch /var/www/html/database/database.sqlite
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 
-# 9. Настраиваем .env и генерируем ключ
-RUN cp .env.example .env || true
-RUN php artisan key:generate
+# 9. Entrypoint: порт Render, миграции, кэш
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 80
 
-# 10. Очищаем базу и запускаем веб-сервер
-CMD ["sh", "-c", "php artisan migrate:fresh --force && apache2-foreground"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["apache2-foreground"]
