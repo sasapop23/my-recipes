@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Рецепты') — {{ config('app.name', 'Мои рецепты') }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="stylesheet" href="{{ asset('build/assets/app.css') }}">
+
 </head>
 <body class="min-h-screen bg-stone-50 text-stone-800 antialiased">
     <header class="sticky top-0 z-50 border-b border-stone-200 bg-white/90 backdrop-blur-md">
