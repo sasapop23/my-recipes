@@ -47,7 +47,10 @@ RUN touch /var/www/html/database/database.sqlite
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 
-# 9. Entrypoint: порт Render, миграции, кэш
+# 9. Базовый .env (на Render переменные окружения перекрывают значения из файла)
+RUN cp .env.example .env
+
+# 10. Entrypoint: порт Render, APP_KEY, миграции, кэш
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
