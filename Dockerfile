@@ -1,70 +1,47 @@
-# syntax=docker/dockerfile:1
+FROM php:8.2-apache
 
-# ---------------------------------------------------------------------------
-# Stage 1: build frontend assets (Vite + Tailwind)
-# ---------------------------------------------------------------------------
-FROM node:22-alpine AS frontend
-
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci
-
-COPY vite.config.js ./
-COPY resources ./resources
-RUN npm run build
-
-# ---------------------------------------------------------------------------
-# Stage 2: PHP 8.4 + Apache runtime for Render.com
-# ---------------------------------------------------------------------------
-FROM php:8.4-apache AS runtime
-
-LABEL org.opencontainers.image.title="my-recipes"
-LABEL org.opencontainers.image.description="Laravel recipe site for Render.com"
-
-# System deps + PHP extensions (SQLite, Laravel essentials)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        git \
-        unzip \
-        libzip-dev \
-        libsqlite3-dev \
-    && docker-php-ext-install \
-        pdo_sqlite \
-        zip \
-        opcache \
-    && a2enmod rewrite headers \
+# Устанавливаем необходимые зависимости
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libwebp-dev \
+    libsodium-dev \
+    libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# Включаем PHP расширения
+RUN docker-php-ext-install \
+    pdo_sqlite \
+    zip \
+    gd \
+    sodium \
+    opcache
 
-WORKDIR /var/www/html
+# Настраиваем Apache (Mod_rewrite для Laravel)
+RUN a2enmod rewrite
 
-# Install PHP dependencies first (better layer caching)
-COPY composer.json composer.lock ./
-RUN composer install \
-        --no-dev \
-        --no-interaction \
-        --no-scripts \
-        --prefer-dist \
-        --optimize-autoloader
+# Копируем исходный код приложения в контейнер
+COPY . /var/www/html
 
-# Application code
-COPY . .
-COPY --from=frontend /app/public/build ./public/build
+# Устанавливаем Composer (если его нет в образе)
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Apache vhost for Laravel (DocumentRoot = public/)
-COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
+# Обновляем зависимости Composer
+RUN composer install --no-dev --optimize-autoloader
 
-# Startup: SQLite file, migrations, Render PORT, then Apache
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh \
-    && composer dump-autoload --optimize \
-    && php artisan package:discover --ansi \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+# Устанавливаем права на папки (для Laravel)
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Копируем .env.example в .env (если .env нет)
+RUN cp .env.example .env || true
+
+# Генерируем ключ приложения
+RUN php artisan key:generate
+
+# Открываем порт 80 (стандартный для веб)
 EXPOSE 80
-
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["apache2-foreground"]
+CMD ["sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0"]

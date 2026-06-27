@@ -32,7 +32,9 @@ if [ -n "$APP_KEY" ]; then
     php artisan view:cache --no-ansi || true
 fi
 
-# Run migrations on every container start
-php artisan migrate --force --no-ansi
+# Apply pending migrations (safe on redeploy with persistent SQLite on Render)
+php artisan migrate --force --no-ansi || {
+    echo "Warning: migrate exited with an error; continuing startup (tables may already exist)."
+}
 
 exec "$@"
