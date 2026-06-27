@@ -1,7 +1,6 @@
 FROM php:8.4-apache
-   
 
-# Устанавливаем необходимые зависимости
+# 1. Устанавливаем необходимые системные библиотеки
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -13,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Включаем PHP расширения
+# 2. Устанавливаем расширения PHP (включая SQLite)
 RUN docker-php-ext-install \
     pdo_sqlite \
     zip \
@@ -21,28 +20,30 @@ RUN docker-php-ext-install \
     sodium \
     opcache
 
-# Настраиваем Apache (Mod_rewrite для Laravel)
+# 3. Перенаправляем Apache на публичную папку Laravel (public)
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 RUN a2enmod rewrite
 
-# Копируем исходный код приложения в контейнер
+# 4. Копируем файлы проекта в контейнер
 COPY . /var/www/html
 
-# Устанавливаем Composer (если его нет в образе)
+# 5. Устанавливаем Composer и зависимости
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Обновляем зависимости Composer
 RUN composer install --no-dev --optimize-autoloader
 
-# Устанавливаем права на папки (для Laravel)
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+# 6. Создаем пустую базу данных прямо на сервере
+RUN touch /var/www/html/database/database.sqlite
 
-# Копируем .env.example в .env (если .env нет)
+# 7. ДАЕМ ПРАВА ДОСТУПА ВЕБ-СЕРВЕРУ (Это решит нашу ошибку!)
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
+RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
+
+# 8. Настраиваем .env и генерируем ключ безопасности
 RUN cp .env.example .env || true
-
-# Генерируем ключ приложения
 RUN php artisan key:generate
 
-# Открываем порт 80 (стандартный для веб)
+# Открываем порт 80
 EXPOSE 80
-CMD ["sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0"]
+
+# 9. При старте контейнера очищаем базу и запускаем веб-сервер Apache
+CMD ["sh", "-c", "php artisan migrate:fresh --force && apache2-foreground"]
