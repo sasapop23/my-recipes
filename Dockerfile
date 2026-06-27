@@ -34,9 +34,11 @@ COPY . /var/www/html
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN composer install --no-dev --optimize-autoloader
 
-# 6. Устанавливаем зависимости Node.js и собираем стили Vite (Решит нашу ошибку!)
+# 6. Устанавливаем зависимости Node.js и собираем стили Vite
 RUN npm install
-RUN npm run build
+RUN npm run build \
+    && test -f public/build/manifest.json \
+    || (echo "ERROR: Vite build did not produce public/build/manifest.json" && exit 1)
 
 # 7. Создаем пустую базу данных
 RUN touch /var/www/html/database/database.sqlite

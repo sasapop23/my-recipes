@@ -5,10 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Рецепты') — {{ config('app.name', 'Мои рецепты') }}</title>
 
-    @fonts
-
-    @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
+    @if (file_exists(public_path('hot')))
+        {{-- Режим разработки: Vite dev server --}}
+        @fonts
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @elseif (file_exists(public_path('build/manifest.json')))
+        {{-- Production: пути берём из manifest.json (имя файла с хешем) --}}
+        @php
+            $viteManifest = json_decode(file_get_contents(public_path('build/manifest.json')), true);
+            $fontsManifestPath = public_path('build/fonts-manifest.json');
+            $fontsManifest = file_exists($fontsManifestPath)
+                ? json_decode(file_get_contents($fontsManifestPath), true)
+                : null;
+        @endphp
+
+        @if (! empty($fontsManifest['style']['file']))
+            <link rel="stylesheet" href="{{ asset('build/'.$fontsManifest['style']['file']) }}">
+        @endif
+
+        @if (! empty($viteManifest['resources/css/app.css']['file']))
+            <link rel="stylesheet" href="{{ asset('build/'.$viteManifest['resources/css/app.css']['file']) }}">
+        @endif
+
+        @if (! empty($viteManifest['resources/js/app.js']['file']))
+            <script type="module" src="{{ asset('build/'.$viteManifest['resources/js/app.js']['file']) }}"></script>
+        @endif
     @endif
 
 </head>
